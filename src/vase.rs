@@ -29,6 +29,19 @@ pub fn run(){
                         send_list[i+1].send(true).unwrap();
                         println!("Thread {}", i);
                     }
+                
+                // while {
+                //     match recv.try_recv() {
+                //         Ok(sign) => {
+                //         if sign && i != N-1{
+                //             send_list[i+1].send(true).unwrap();
+                //             println!("Thread {}", i);
+                //         }
+                //         },
+                //         Err(_) => {break},
+                //     }
+                // }
+
                     // break;
                 }
             }
