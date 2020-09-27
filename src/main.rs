@@ -1,4 +1,5 @@
 use rand::Rng;
+use std::thread;
 static N: usize = 10;
 
 #[derive(Debug, Clone, Copy)]
@@ -33,24 +34,30 @@ impl Guest {
     }
 }
 
-fn start_birthday_party(number_of_guests: usize){
+fn start_birthday_party_thread(number_of_guests: usize){
 
     let mut guest_list = Guest::gen_guest_list(number_of_guests);
+
     let mut cupcake = true;
     let mut all_have_visited = false;
 
     let mut rng = rand::thread_rng();
-    let mut x = 0;
 
     while !all_have_visited {
         let pick = rng.gen_range(0, number_of_guests);
-        if pick == number_of_guests-1{
-            x+=1;
-            println!("{}",x);
-        }
-        all_have_visited = guest_list[pick].visit(&mut cupcake);
+        let mut guest_pick = guest_list[pick].clone();
 
-    }
+        let child = thread::spawn( move|| {
+            let res = guest_pick.visit(&mut cupcake);
+            (guest_pick, res, cupcake)
+
+        });
+        let val = child.join().unwrap();
+        guest_list[pick] = val.0;
+        all_have_visited = val.1;
+        cupcake = val.2;
+
+    };
 
     println!("{:?}", guest_list);
 
@@ -82,6 +89,7 @@ mod tests {
 }
 
 fn main() {
-    start_birthday_party(N);
+
+    start_birthday_party_thread(N);
 
 }
