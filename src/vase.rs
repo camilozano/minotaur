@@ -24,25 +24,22 @@ pub fn run(){
         };
         handles.push(thread::spawn(
             move || {
-                for sign in recv{
-                    if sign && i != N-1{
-                        send_list[i+1].send(true).unwrap();
-                        println!("Thread {}", i);
-                    }
-                
-                // while {
-                //     match recv.try_recv() {
-                //         Ok(sign) => {
-                //         if sign && i != N-1{
-                //             send_list[i+1].send(true).unwrap();
-                //             println!("Thread {}", i);
-                //         }
-                //         },
-                //         Err(_) => {break},
-                //     }
-                // }
 
-                    // break;
+                loop {
+                    match recv.try_recv(){
+                        Ok(sign) => {
+                            if sign && i != N-1{
+                                send_list[i+1].send(true).unwrap();
+                                println!("Thread {}", i);
+                            }
+                        }
+                        Err(err) => {
+                            if err == crossbeam_channel::TryRecvError::Disconnected{
+                                println!("{}",err);
+                            }
+                            break;
+                        }
+                    }
                 }
             }
         ));
@@ -53,11 +50,11 @@ pub fn run(){
         let r = i.1;
         drop(s);
         drop(r);
-        println!("Drop");
+        // println!("Drop");
     }
     for j in handles{
         j.join().unwrap();
-        println!("Drop!");
+        // println!("Drop!");
     }
 
 
