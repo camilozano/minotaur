@@ -12,16 +12,15 @@ fn generate_guest_queue(number_of_guests: usize) -> Vec<usize>{
     guest
 }
 
-pub fn run(){
+pub fn run(number_of_guests: usize){
 
-    static N: usize = 10;
-    assert!(N>0);
+    assert!(number_of_guests>0);
 
-    let mut guest_queue = generate_guest_queue(N);
+    let mut guest_queue = generate_guest_queue(number_of_guests);
 
     let mut channel_list = Vec::new();
     let mut handles = vec![];
-    for _ in 0..N{
+    for _ in 0..number_of_guests{
        channel_list.push(crossbeam_channel::unbounded()); 
     }
 
@@ -30,11 +29,11 @@ pub fn run(){
     let mut last_handle = thread::spawn(||{false});
     channel_list[first_pick].0.send(guest_queue).unwrap();
     
-    for i in 0..N{
+    for i in 0..number_of_guests{
         let recv = channel_list[i].1.clone();
         let send_list = {
-            let mut x = Vec::with_capacity(N);
-            for j in 0..N{
+            let mut x = Vec::with_capacity(number_of_guests);
+            for j in 0..number_of_guests{
                 x.push(channel_list[j].0.clone())
             }
             x 
