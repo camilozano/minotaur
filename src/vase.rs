@@ -1,5 +1,5 @@
 use crossbeam_channel;
-use std::{thread,time};
+use std::thread;
 use rand::Rng;
 
 
@@ -27,6 +27,7 @@ pub fn run(){
 
     let first_pick = guest_queue.pop().unwrap();
     let last_in_line = guest_queue[0];
+    let mut last_handle = thread::spawn(||{false});
     channel_list[first_pick].0.send(guest_queue).unwrap();
     
     for i in 0..N{
@@ -38,8 +39,9 @@ pub fn run(){
             }
             x 
         };
-       handles.push(thread::spawn(
+       let handle = thread::spawn(
             move || {
+                let mut done = false;
                 loop {
                     match recv.try_recv(){
                         Ok(guest_list) => {
@@ -51,7 +53,8 @@ pub fn run(){
                             }
                             else{
                                 println!("Done");
-                                break;
+                                done = true;
+                                return done;
                             }
                         }
                         Err(err) => {
@@ -62,24 +65,20 @@ pub fn run(){
                         }
                     }
                 }
+                done
             }
-        ));
-    }
-    // thread::sleep(time::Duration::from_secs(5));
+        );
 
-    // for i in channel_list{
-    //     let s = i.0;
-    //     let r = i.1;
-    //     drop(s);
-    //     drop(r);
-    //     // println!("Drop");
-    // }
-    for j in handles{
-        j.join().unwrap();
-        println!("Drop!");
+        if i != last_in_line{
+            handles.push(handle);
+        }
+        else {
+            last_handle = handle;
+        }
+
+
     }
 
-
-
+    assert_eq!(last_handle.join().unwrap(),true);
 
 }
