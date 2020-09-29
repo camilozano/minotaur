@@ -1,6 +1,7 @@
 
 use rand::Rng;
 use std::thread;
+use multiqueue;
 
 #[derive(Debug, Clone, Copy)]
 enum Guest {
@@ -28,36 +29,75 @@ impl Guest {
         }
     }
     fn gen_guest_list(count: usize) -> Vec<Guest>{
-        let mut guest_list: Vec<Guest> = vec![Guest::Secondary{visited: false}; count-1];
-        guest_list.push(Guest::Primary{counter:1,total:count as i32});
+        let guest_list: Vec<Guest> = vec![Guest::Secondary{visited: false}; count-1];
+        //guest_list.push(Guest::Primary{counter:1,total:count as i32});
         guest_list
     }
 }
 
 pub fn start_birthday_party_thread(number_of_guests: usize){
 
-    let mut guest_list = Guest::gen_guest_list(number_of_guests);
+    let mut primary_guest = Guest::Primary{counter:1, total:number_of_guests as i32};
+    let primary_guest_idx = number_of_guests-1;
+    let guest_list = Guest::gen_guest_list(number_of_guests);
 
     let mut cupcake = true;
-    let mut all_have_visited = false;
+    let mut handles = Vec::with_capacity(number_of_guests);
 
-    let mut rng = rand::thread_rng();
+    let (send,recv) = multiqueue::broadcast_queue(100);
+    let (send_done,recv_done) = multiqueue::broadcast_queue(0);
 
-    while !all_have_visited {
-        let pick = rng.gen_range(0, number_of_guests);
-        let mut guest_pick = guest_list[pick].clone();
 
-        let child = thread::spawn( move|| {
-            let res = guest_pick.visit(&mut cupcake);
-            (guest_pick, res, cupcake)
+    let primary_recv = recv.clone();
+    let primary_send_done = send_done.clone();
+    let primary_guest_handle = thread::spawn( move || {
+        for msg in primary_recv{
+            if msg == primary_guest_idx {
+                println!("{}",msg);
+                primary_guest.visit(&mut cupcake);
+                primary_send_done.try_send(true).unwrap();
+            }
+        } 
+    });
 
-        });
-        let val = child.join().unwrap();
-        guest_list[pick] = val.0;
-        all_have_visited = val.1;
-        cupcake = val.2;
+    for i in 0..number_of_guests-1{
+        let guest_recv = recv.clone();
+        let guest_send_done = send_done.clone();
+        handles.push(
+            thread::spawn(
+                move || {
+                    for msg in guest_recv {
+                        println!("Here {}", i);
+                        if msg == i {
+                            println!("{}",msg);
+                            primary_guest.visit(&mut cupcake);
+                            guest_send_done.try_send(true).unwrap();
+                        }
+                    }
+                }
+            )
+        );
+    }
 
-    };
+    let minataur_send = send.clone();
+    let minataur_recv_done = recv_done.clone();
+    thread::spawn(
+        move || {
+            for msg in minataur_recv_done{
+                if msg {
+                    let mut rng = rand::thread_rng();
+                    let pick = rng.gen_range(0, number_of_guests);
+                    println!("Minataur Send {}", pick);
+                    minataur_send.try_send(pick).unwrap();
+                }
+            }
+        }
+    );
+    send_done.try_send(true).unwrap();
+    
+
+    primary_guest_handle.join().unwrap();
+
 
     println!("{:?}", guest_list);
 
